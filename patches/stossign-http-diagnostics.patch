@@ -1,0 +1,25 @@
+diff --git a/Sources/StosSign_API/AppleAPI.swift b/Sources/StosSign_API/AppleAPI.swift
+index 358d73c..ee3cbf2 100755
+--- a/Sources/StosSign_API/AppleAPI.swift
++++ b/Sources/StosSign_API/AppleAPI.swift
+@@ -630,7 +630,19 @@ public final class AppleAPI: Sendable {
+             request.setValue(value, forHTTPHeaderField: key)
+         }
+         
+-        let (data, _) = try await self.session.data(for: request)
++        let (data, response) = try await self.session.data(for: request)
++
++        if let http = response as? HTTPURLResponse,
++           !(200...299).contains(http.statusCode) {
++            let parsed = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
++            let errors = parsed?["errors"] as? [[String: Any]]
++            let code = errors?.first?["code"] as? String ?? "Unknown"
++            let title = errors?.first?["title"] as? String ?? "Unknown"
++            throw AppleAPIError.customError(
++                code: http.statusCode,
++                message: "HTTP \(http.statusCode) | Apple code: \(code) | Title: \(title)"
++            )
++        }
+         
+         if json {
+             guard let responseDictionary = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] else {
