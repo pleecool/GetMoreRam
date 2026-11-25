@@ -52,24 +52,52 @@ jobs:
           file_to_build=`ls -A | grep -i \\.xcworkspace\$ || ls -A | grep -i \\.xcodeproj\$`
           file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
           echo "file_to_build=$file_to_build" >> $GITHUB_OUTPUT
+      - name: Resolve and patch StosSign
+        run: |
+          set -e
+          xcodebuild -resolvePackageDependencies -scheme GetMoreRam -clonedSourcePackagesDirPath "$PWD/.swift-packages"
+
+          STOS="$(find "$PWD/.swift-packages/checkouts" -maxdepth 1 -type d -iname StosSign -print -quit)"
+
+          test -n "$STOS"
+          git -C "$STOS" checkout --detach 01dd7bc4f5084ade9e2ebbc7e338dc2e3f454d77
+          git -C "$STOS" apply --check "$PWD/patches/stossign-http-diagnostics.patch"
+          git -C "$STOS" apply "$PWD/patches/stossign-http-diagnostics.patch"
+          git -C "$STOS" rev-parse HEAD
+          git -C "$STOS" diff --stat
+          echo "StosSign HTTP diagnostics applied successfully"
+      - name: Resolve and patch StosSign
+        run: |
+          set -e
+          xcodebuild -resolvePackageDependencies -scheme GetMoreRam -clonedSourcePackagesDirPath "$PWD/.swift-packages"
+
+          STOS="$(find "$PWD/.swift-packages/checkouts" -maxdepth 1 -type d -iname StosSign -print -quit)"
+
+          test -n "$STOS"
+          git -C "$STOS" checkout --detach 01dd7bc4f5084ade9e2ebbc7e338dc2e3f454d77
+          git -C "$STOS" apply --check "$PWD/patches/stossign-http-diagnostics.patch"
+          git -C "$STOS" apply "$PWD/patches/stossign-http-diagnostics.patch"
+          git -C "$STOS" rev-parse HEAD
+          git -C "$STOS" diff --stat
+          echo "StosSign HTTP diagnostics applied successfully"
       - name: Build
         env:
           scheme: ${{ steps.scheme.outputs.scheme }}
           filetype_parameter: ${{ steps.filetype_parameter.outputs.filetype_parameter }}
           file_to_build: ${{ steps.file_to_build.outputs.file_to_build }}
-        run: xcodebuild clean build -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -sdk iphoneos -arch arm64 -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO | xcpretty && exit ${PIPESTATUS[0]}
+        run: xcodebuild clean build -clonedSourcePackagesDirPath "$PWD/.swift-packages" -disableAutomaticPackageResolution -clonedSourcePackagesDirPath "$PWD/.swift-packages" -disableAutomaticPackageResolution -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -sdk iphoneos -arch arm64 -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO | xcpretty && exit ${PIPESTATUS[0]}
       - name: Analyze
         env:
           scheme: ${{ steps.scheme.outputs.scheme }}
           filetype_parameter: ${{ steps.filetype_parameter.outputs.filetype_parameter }}
           file_to_build: ${{ steps.file_to_build.outputs.file_to_build }}
-        run: xcodebuild analyze -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -sdk iphoneos -arch arm64 -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO | xcpretty && exit ${PIPESTATUS[0]}
+        run: xcodebuild analyze -clonedSourcePackagesDirPath "$PWD/.swift-packages" -disableAutomaticPackageResolution -clonedSourcePackagesDirPath "$PWD/.swift-packages" -disableAutomaticPackageResolution -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -sdk iphoneos -arch arm64 -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO | xcpretty && exit ${PIPESTATUS[0]}
       - name: Archive
         env:
           scheme: ${{ steps.scheme.outputs.scheme }}
           filetype_parameter: ${{ steps.filetype_parameter.outputs.filetype_parameter }}
           file_to_build: ${{ steps.file_to_build.outputs.file_to_build }}
-        run: xcodebuild archive -archivePath "$archive_path" -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -sdk iphoneos -arch arm64 -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO | xcpretty && exit ${PIPESTATUS[0]}
+        run: xcodebuild archive -clonedSourcePackagesDirPath "$PWD/.swift-packages" -disableAutomaticPackageResolution -clonedSourcePackagesDirPath "$PWD/.swift-packages" -disableAutomaticPackageResolution -archivePath "$archive_path" -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -sdk iphoneos -arch arm64 -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO | xcpretty && exit ${PIPESTATUS[0]}
       - name: Tar Build Artifact
         run: tar -cvf "$archive_path.xcarchive.tar" "$archive_path.xcarchive"
       - name: Upload a Build Artifact
