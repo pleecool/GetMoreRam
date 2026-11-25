@@ -345,10 +345,19 @@ final class AnisetteDataHelper
             return
         }
         
-        self.printOut("Using custom client_info")
+        self.printOut("Fetching client_info from Anisette server")
                         
-        self.clientInfo = "<iMac18,3> <macOS;27.0;26A5378j> <com.apple.AuthKit/1 (com.apple.akd/1.0)>"
-        self.userAgent = "AuthKit/1 (Macintosh; OS X 27.0) (com.apple.akd/1.0)"
+        let clientInfoURL = self.url!.appendingPathComponent("v3").appendingPathComponent("client_info")
+        let (data, response) = try await URLSession.shared.data(from: clientInfoURL)
+        guard let http = response as? HTTPURLResponse,
+              (200...299).contains(http.statusCode),
+              let json = try JSONSerialization.jsonObject(with: data) as? [String: String],
+              let info = json["client_info"],
+              let agent = json["user_agent"] else {
+            throw "Invalid Anisette client info response"
+        }
+        self.clientInfo = info
+        self.userAgent = agent
         self.printOut("Client-Info: \(self.clientInfo!)")
         self.printOut("User-Agent: \(self.userAgent!)")
         
